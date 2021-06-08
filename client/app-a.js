@@ -4,6 +4,7 @@ import { intent, button, table, tbody, tr, td, number_input } from './dom-driver
 const COLS = 100
 const ROWS = 108
 
+
 const go_click = true, clear_click = false
 const running$ = Stream.merge(
   intent.go_button.click.mapTo(go_click),
@@ -14,11 +15,12 @@ const running$ = Stream.merge(
 , false)
 .startWith(false)
 
+
 const speed_input$ = intent.speed_input.input
   .map(e => Number(e.target.value))
   .startWith(500)
 
-  const tick_speed$ = running$
+const tick_speed$ = running$
   .map(running => running ? speed_input$.take(1) : Stream.empty())
   .flatten()
 
@@ -72,7 +74,7 @@ const drawing_mode = (row_, col_) =>
 
 const live_neighbour_count = (row, col) => tick$
   .map(() =>
-    Stream.combine(
+    Stream.merge(
       grid[row - 1]?.[col - 1],
       grid[row - 1]?.[col    ],
       grid[row - 1]?.[col + 1],
@@ -91,6 +93,7 @@ const grid =
 Array(ROWS).fill().map((_, row) =>
   Array(COLS).fill().map((_, col) => {
     const drawing_mode$ = drawing_mode(row, col)
+    // drawing_mode$.log()
     const live_neighbour_count$ = live_neighbour_count(row, col)
 
     const running_mode = (is_live, live_neighbour_count) =>
@@ -115,17 +118,23 @@ table({ should_update: false, attr: { ondragstart: 'return false', ondrop: 'retu
     tr(row.map((live$, col_i) =>
       td({ subscribe: [live$, (node, live) => console.log(node, live)], data: { row: row_i, col: col_i }}))))))
 
+
+// /for each arg. if it's an object, it is options. if it's an array, children, if string, text content
+// Don't put events: click on the elements. Just ask for them in the stream api. Only need id.
+// intent.go_button.click
+
+// Stream.combine(running$, speed_input$).log()
+
 export const ui$ = Stream.combine(running$, speed_input$)
-.debug('combine(running, speed)')
+// .log()
 .map(([running, speed]) => [
   // 'Rows: ', number_input(         { id: 'rows_input' }),
   // ' Columns: ', number_input(     { id: 'cols_input' }),
   // button('Update',                { id: 'update_button' }),
   ' Speed: ', number_input(       { id: 'speed_input' , attr: { value: speed }}),
-  button(running ? 'Stop' : 'Go', { id: 'go_button' }),
+  button(running ? 'Stop' : 'Go', { id: 'go_button'}),
   button('Tick',                  { id: 'tick_button', attr: {...running && { disabled: '' }} }),
   button('Clear',                 { id: 'clear_button' }),
   grid_component
 ])
-
-
+// .log()

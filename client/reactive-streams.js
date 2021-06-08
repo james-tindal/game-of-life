@@ -2,6 +2,8 @@
 const Some = (value) => ({ match: cases => cases.Some(value) })
 const None =            ({ match: cases => cases.None()      })
 
+const noop = () => {}
+
 // Performance can be improved by using prototypal inheritance instead of making so many objects.
 
 const Stream = (provider, {is_memory_stream = false} = {}) => {
@@ -11,10 +13,10 @@ const Stream = (provider, {is_memory_stream = false} = {}) => {
     listeners.forEach(listener => listener && listener(value))
     is_memory_stream && ( previous = Some(value) )
   }
-  let stop = () => {}
+  let stop = noop
   const start = () => { stop = provider(push) }
 
-  function addListener(listener) {
+  function addListener(listener = noop) {
     listeners.includes(listener) || (
       is_memory_stream && previous.match({
         Some(value) { listener(value) },
@@ -22,18 +24,18 @@ const Stream = (provider, {is_memory_stream = false} = {}) => {
       }),
       listeners.push(listener)
     )
-    // console.log(listener, listeners.length)
     listeners.length === 1 && start()
   }
-  function removeListener(listener) {
-    // console.log('removeListener', listener)
+  function removeListener(listener = noop) {
     listeners.splice(listeners.indexOf(listener), 1)
-    listeners.length === 0 && (stop && stop(), stop = () => {})
+    listeners.length === 0 && (stop && stop(), stop = noop)
   }
-  function subscribe(listener) {
+  function subscribe(listener = noop) {
     addListener(listener)
     return () => removeListener(listener)
   }
+
+  const next_loop = fn => setTimeout(fn, 0)
 
   const self = {
     listeners,
@@ -44,8 +46,8 @@ const Stream = (provider, {is_memory_stream = false} = {}) => {
     mapTo: value => Stream(push_ => subscribe(() => push_(value))),
     take: n => Stream(push_ => {
       let i = 0
-      let unsubscribe
-      return unsubscribe = subscribe(value => i < n ? (push_(value), i++) : unsubscribe())
+      const unsubscribe = subscribe(value => i < n ? (push_(value), i++) : next_loop(unsubscribe))
+      return unsubscribe
     }),
     takeUntil: until => Stream(push_ => {
       const unsubscribe1 = subscribe(push_)
@@ -63,9 +65,14 @@ const Stream = (provider, {is_memory_stream = false} = {}) => {
           push_(value)
         ))),
     flatMap: callback => self.map(callback).flatten(),
-    startWith: value => Stream(push_ => { push_(value); return subscribe(push_) }),
-    log() { addListener(console.log.bind(console)); return self },
-    remember: () => Stream(push_ => subscribe(push_), {is_memory_stream: true}),
+    // Doesn't have to be memorised. Could just push on next loop.
+    startWith: value => Stream(push_ => { push_(value); return subscribe(push_) }, {is_memory_stream: true}),
+    debug: label_or_spy => Stream(push_ => subscribe(value => {
+      typeof label_or_spy === 'function' ? label_or_spy(value) :
+      typeof label_or_spy === 'string'   ? console.log(label_or_spy, value)
+                                         : console.log(value)
+      push_(value) })),
+    remember: () => Stream(subscribe, {is_memory_stream: true}),
     scan: (callback, seed) => {
       let acc = seed
       return Stream(push_ => subscribe(value => {
@@ -80,10 +87,14 @@ const Stream = (provider, {is_memory_stream = false} = {}) => {
 export default Stream
 
 
-Stream.merge = (a, b) => Stream(push => {
-  a.addListener(push)
-  b.addListener(push)
-})
+Stream.merge = (...streams) =>
+  Stream(push => {
+    const subscriptions = 
+    streams.map(stream =>
+      stream && stream.subscribe(push))
+    return () => subscriptions.forEach(unsubscribe => unsubscribe && unsubscribe())
+  })
+
 Stream.of = value => Stream(push => setTimeout(() => push(value)))
 
 Stream.periodic = period => Stream(push_ => {
@@ -103,12 +114,12 @@ const _combine_obj = streams => Stream(push => {
   const listener = key => value => {
     latest[key] = value
     if(should_push)
-      push(latest)
+      push([...latest])
     else {
       have_pushed[key] = true
       if (have_pushed.every(has_pushed => has_pushed)) {
         should_push = true
-        push(latest)
+        push([...latest])
       }
     }
   }
@@ -131,12 +142,12 @@ const _combine_varargs = streams => Stream(push => {
   const listener = index => value => {
     latest[index] = value
     if(should_push)
-      push(latest)
+      push([...latest])
     else {
       have_pushed[index] = true
       if (have_pushed.every(has_pushed => has_pushed)) {
         should_push = true
-        push(latest)
+        push([...latest])
       }
     }
   }
@@ -144,9 +155,9 @@ const _combine_varargs = streams => Stream(push => {
   const subscriptions = []
 
   for (let index = 0; index < streams.length; index ++)
-    subscriptions[index] = streams[index].subscribe(listener(index))
+    subscriptions[index] = streams[index]?.subscribe(listener(index))
   
-  return () => subscriptions.forEach(unsubscribe => unsubscribe())
+  return () => subscriptions.forEach(unsubscribe => unsubscribe && unsubscribe())
 })
 
 Stream.combine = (...args) =>
