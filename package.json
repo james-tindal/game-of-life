@@ -1,0 +1,24 @@
+{
+  "dependencies": {
+    "deep-diff": "^1.0.2",
+    "server": "^1.0.33"
+  },
+  "scripts": {
+    "build": "webpack",
+    "dev": "webpack & node .",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+  },
+  "devDependencies": {
+    "jest": "^27.0.4",
+    "jest-webpack": "^0.5.1",
+    "webpack-cli": "^4.7.1"
+  },
+  "name": "game-of-life",
+  "version": "1.0.0",
+  "browser": "client/index.js",
+  "main": "server",
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "module"
+}
