@@ -1,3 +1,9 @@
-node_modules/
-public/main.js
-.DS_Store
+# block all
+*
+!*/
+!/.gitignore
+
+# whitelist
+!/package.json
+!/README.md
+!/src/**
