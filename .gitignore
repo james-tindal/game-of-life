@@ -1,3 +1,14 @@
-node_modules/
-public/main.js
-.DS_Store
+# block all
+*
+!*/
+
+# whitelist
+!/package.json
+!/package-lock.json
+!/.gitignore
+!/README.md
+!/webpack.config.js
+
+!/server/**
+!/client/**
+!/public/**
