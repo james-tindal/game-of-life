@@ -1,7 +1,9 @@
 # Conway's Game of Life
 
-In the 'simple' folder, there is a mostly fully working version.
-To run, open simple/index.html in a browser
+This branch contains a work-in-progress rewrite.
 
-I am building a more complex one by imitating the cycle.js framework, using my own implementation of reactive streams and virtual DOM.
-To run, 'npm run dev', go to http://localhost:3000
+This was an attempt at writing a front-end renering framework using my own implementation of reactive streams and virtual DOM.
+
+Abandoned as I have different ideas about how to make a front-end framework now.
+
+To run, `npm run dev`, go to http://localhost:3000
